@@ -48,11 +48,9 @@ jobs:
         run: |-
           make lib_install
           export PATH="$PATH:$(go env GOPATH)/bin"
-          make lib_android
+          make lib_android_debug
           make build_android
         env:
-          GOOS: "android"
-          GOARCH: "arm64"
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
       - name: Prepare upload
