@@ -22,6 +22,7 @@ jobs:
         run: |
           git clone https://github.com/SagerNet/sing-box sing-box
           git clone https://github.com/SagerNet/sing-box-for-android sing-box-for-android
+          ls -alh
       - name: Extra Modify
         working-directory: sing-box
         run: |
@@ -39,17 +40,19 @@ jobs:
         run: |-
           sudo apt update && sudo apt install -y openjdk-17-jdk-headless
           /usr/lib/jvm/java-17-openjdk-amd64/bin/java --version
-      - name: Build Desktop
-        working-directory: sing-box
-        run: |-
-          make
+      # - name: Build Desktop
+      #   working-directory: sing-box
+      #   run: |-
+      #     make
       - name: Build Andriod
         working-directory: sing-box
         run: |-
           make lib_install
           export PATH="$PATH:$(go env GOPATH)/bin"
           make lib_android_debug
-          make build_android
+          ls -alh
+          ls ../sing-box-for-android/app/libs -alh
+          # make build_android
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
