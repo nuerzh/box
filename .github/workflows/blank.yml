@@ -30,44 +30,46 @@ jobs:
           sed -i '$a\ALIAS_NAME=${{ secrets.KEY_PASS }}'            ./gradle.properties
           sed -i '$a\KEYSTORE_PASS=${{ secrets.KEY_PASS }}'       ./gradle.properties
           sed -i '$a\ALIAS_PASS=${{ secrets.KEY_PASS }}'         ./gradle.properties
-      - name: Extra Modify
-        working-directory: sing-box
-        run: |
-          echo '修改VersionName'
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ^1.24
-      - name: Setup Android NDK
-        id: setup-ndk
-        uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: r28
-      - name: Setup OpenJDK
-        run: |-
-          sudo apt update && sudo apt install -y openjdk-17-jdk-headless
-          /usr/lib/jvm/java-17-openjdk-amd64/bin/java --version
-      - name: Build Desktop
-        working-directory: sing-box
-        run: |-
-          make
-      - name: Build Andriod
-        working-directory: sing-box
-        run: |-
-          make lib_install
-          export PATH="$PATH:$(go env GOPATH)/bin"
-          make lib_android_debug
-          ls ../sing-box-for-android/app/libs -alh
-          make build_android
-        env:
-          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
-          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-      - name: Prepare upload
-        if: github.event_name == 'workflow_dispatch'
-        run: |-
-          mkdir -p dist/release
-          cp sing-box/sing-box.* dist/release
-          cp sing-box-for-android/app/build/outputs/apk/other/release/*.apk dist/release
+          cat ./gradle.properties
+          ls app -alh
+      # - name: Extra Modify
+      #   working-directory: sing-box
+      #   run: |
+      #     echo '修改VersionName'
+      # - name: Setup Go
+      #   uses: actions/setup-go@v5
+      #   with:
+      #     go-version: ^1.24
+      # - name: Setup Android NDK
+      #   id: setup-ndk
+      #   uses: nttld/setup-ndk@v1
+      #   with:
+      #     ndk-version: r28
+      # - name: Setup OpenJDK
+      #   run: |-
+      #     sudo apt update && sudo apt install -y openjdk-17-jdk-headless
+      #     /usr/lib/jvm/java-17-openjdk-amd64/bin/java --version
+      # - name: Build Desktop
+      #   working-directory: sing-box
+      #   run: |-
+      #     make
+      # - name: Build Andriod
+      #   working-directory: sing-box
+      #   run: |-
+      #     make lib_install
+      #     export PATH="$PATH:$(go env GOPATH)/bin"
+      #     make lib_android_debug
+      #     ls ../sing-box-for-android/app/libs -alh
+      #     make build_android
+      #   env:
+      #     JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+      #     ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+      # - name: Prepare upload
+      #   if: github.event_name == 'workflow_dispatch'
+      #   run: |-
+      #     mkdir -p dist/release
+      #     cp sing-box/sing-box.* dist/release
+      #     cp sing-box-for-android/app/build/outputs/apk/other/release/*.apk dist/release
       # - name: Upload artifact
       #   if: github.event_name == 'workflow_dispatch'
       #   uses: actions/upload-artifact@v4
