@@ -2,12 +2,12 @@ name: Test
 on:
   workflow_dispatch:
     inputs:
-      rebuild:
-        description: '忽略构建记录以重新构建'
+      allbuild:
+        description: '构建全部'
         required: false
         type: boolean
       donotpublish:
-        description: '构建后不提交发布新版'
+        description: '构建桌面版本'
         required: false
         type: boolean
 jobs:
@@ -23,6 +23,8 @@ jobs:
           git clone https://github.com/SagerNet/sing-box sing-box
           git clone https://github.com/SagerNet/sing-box-for-android sing-box-for-android
           mkdir sing-box-for-android/app/libs
+          cd sing-box-for-android
+          git checkout dev
       - name: Extra Modify
         working-directory: sing-box
         run: |
