@@ -25,8 +25,9 @@ jobs:
           mkdir sing-box-for-android/app/libs
           cd sing-box-for-android
           git checkout dev
-          cp -f ${{ github.workspace }}/.github/workflows/box.jks app/release.keystore
-          # sed -i '$a\release.keystore=./box.jks'     ./gradle.properties
+          rm -rf app/release.keystore
+          cp -rf ${{ github.workspace }}/.github/workflows/box.jks app/release.keystore
+          sed -i '$a\release.keystore=./box.jks'     ./gradle.properties
           sed -i '$a\ALIAS_NAME=${{ secrets.KEY_PASS }}'            ./gradle.properties
           sed -i '$a\KEYSTORE_PASS=${{ secrets.KEY_PASS }}'       ./gradle.properties
           sed -i '$a\ALIAS_PASS=${{ secrets.KEY_PASS }}'         ./gradle.properties
