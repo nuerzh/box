@@ -43,8 +43,6 @@ jobs:
         working-directory: sing-box
         run: |-
           make
-        env:
-          GOPATH: ${{ env.HOME }}/go
       - name: Build Andriod
         working-directory: sing-box
         run: |-
