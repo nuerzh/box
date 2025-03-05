@@ -1,4 +1,15 @@
 name: Test
+on:
+  workflow_dispatch:
+    inputs:
+      rebuild:
+        description: '忽略构建记录以重新构建'
+        required: false
+        type: boolean
+      donotpublish:
+        description: '构建后不提交发布新版'
+        required: false
+        type: boolean
 jobs:
   build:
     runs-on: ubuntu-latest
