@@ -28,9 +28,10 @@ jobs:
           rm -rf app/release.keystore
           cp -rf ${{ github.workspace }}/.github/workflows/box.jks app/box.jks
           sed -i '$a\release.keystore=./box.jks'     ./gradle.properties
-          sed -i '$a\ALIAS_NAME=${{ secrets.KEY_PASS }}'            ./local.properties
-          sed -i '$a\KEYSTORE_PASS=${{ secrets.KEY_PASS }}'       ./local.properties
-          sed -i '$a\ALIAS_PASS=${{ secrets.KEY_PASS }}'         ./local.properties
+
+          echo ALIAS_NAME='${{ secrets.KEY_PASS }}' > ./local.properties
+          echo KEYSTORE_PASS='${{ secrets.KEY_PASS }}' >> ./local.properties
+          echo ALIAS_PASS='${{ secrets.KEY_PASS }}' >> ./local.properties
       - name: Extra Modify
         working-directory: sing-box
         run: |
