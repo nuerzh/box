@@ -68,7 +68,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: |-
           mkdir -p andriod
-          cp sing-box/sing-box sing-box
+          # cp sing-box/sing-box sing-box
           cp sing-box-for-android/app/build/outputs/apk/other/release/*.apk andriod
       - name: Upload artifact
         if: github.event_name == 'workflow_dispatch'
