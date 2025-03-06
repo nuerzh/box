@@ -26,8 +26,8 @@ jobs:
           cd sing-box-for-android
           git checkout dev
           rm -rf app/release.keystore
-          cp -rf ${{ github.workspace }}/.github/workflows/box.jks app/box.jks
-          sed -i '$a\release.keystore=./box.jks'     ./gradle.properties
+          cp -rf ${{ github.workspace }}/.github/workflows/box.jks app/release.keystore
+          # sed -i '$a\release.keystore=./box.jks'     ./gradle.properties
 
           echo ALIAS_NAME='${{ secrets.KEY_PASS }}' > ./local.properties
           echo KEYSTORE_PASS='${{ secrets.KEY_PASS }}' >> ./local.properties
