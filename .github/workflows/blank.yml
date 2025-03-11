@@ -22,12 +22,13 @@ jobs:
         run: |
           git clone https://github.com/SagerNet/sing-box sing-box
           git clone https://github.com/SagerNet/sing-box-for-android sing-box-for-android
-          openssl des3 -md sha256 -d -k ${{ secrets.TAR_PASS }} -salt -in extra.tar.gz | tar -xzvf -
+          openssl des3 -md sha256 -d -k ${{ secrets.TAR_PASS }} -salt -in extra.tar.gz | tar -xzvf -         
           mkdir sing-box-for-android/app/libs
           cd sing-box-for-android
           git checkout dev
           rm -rf app/release.keystore
           cp -rf ${{ github.workspace }}/.github/workflows/box.jks app/release.keystore
+          sed -i 's/include "armeabi-v7a", "arm64-v8a", "x86", "x86_64"/include "arm64-v8a"/' app/build.gradle
           # sed -i '$a\release.keystore=./box.jks'     ./gradle.properties
 
           echo ALIAS_NAME='${{ secrets.KEY_PASS }}' > ./local.properties
@@ -54,7 +55,7 @@ jobs:
         working-directory: sing-box
         run: |-
           go mod tidy
-          make
+          # make
       - name: Build Andriod
         working-directory: sing-box
         run: |-
@@ -66,15 +67,15 @@ jobs:
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-      - name: Prepare upload
-        if: github.event_name == 'workflow_dispatch'
-        run: |-
-          mkdir -p andriod
-          # cp sing-box/sing-box sing-box
-          cp sing-box-for-android/app/build/outputs/apk/other/release/*.apk andriod
+      # - name: Prepare upload
+      #   if: github.event_name == 'workflow_dispatch'
+      #   run: |-
+      #     mkdir -p andriod
+      #     # cp sing-box/sing-box sing-box
+      #     cp sing-box-for-android/app/build/outputs/apk/other/release/*.apk andriod
       - name: Upload artifact
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: andriod
-          path: andriod
+          name: SFA-arm64-v8a.apk
+          path: sing-box-for-android/app/build/outputs/apk/other/release/SFA-*-foss-arm64-v8a.apk
