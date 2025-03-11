@@ -22,7 +22,7 @@ jobs:
         run: |
           git clone https://github.com/SagerNet/sing-box sing-box
           git clone https://github.com/SagerNet/sing-box-for-android sing-box-for-android
-          openssl des3 -md sha256 -d -k ${{ secrets.TAR_PASS }} -salt -in extra.tar.gz | tar -xzvf -         
+          # openssl des3 -md sha256 -d -k ${{ secrets.TAR_PASS }} -salt -in extra.tar.gz | tar -xzvf -         
           mkdir sing-box-for-android/app/libs
           cd sing-box-for-android
           git checkout dev
