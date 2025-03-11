@@ -53,6 +53,7 @@ jobs:
       - name: Build Desktop
         working-directory: sing-box
         run: |-
+          go mod tidy
           make
       - name: Build Andriod
         working-directory: sing-box
