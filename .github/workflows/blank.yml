@@ -35,9 +35,22 @@ jobs:
           echo KEYSTORE_PASS='${{ secrets.KEY_PASS }}' >> ./local.properties
           echo ALIAS_PASS='${{ secrets.KEY_PASS }}' >> ./local.properties
       - name: Extra Modify
+        working-directory: sing-box-for-android
+        run: |
+          mkdir app/libs
+          git checkout dev
+          rm -rf app/release.keystore
+          cp -rf ${{ github.workspace }}/.github/workflows/box.jks app/release.keystore
+          sed -i 's/include "armeabi-v7a", "arm64-v8a", "x86", "x86_64"/include "arm64-v8a"/' app/build.gradle
+          echo ALIAS_NAME='${{ secrets.KEY_PASS }}' > ./local.properties
+          echo KEYSTORE_PASS='${{ secrets.KEY_PASS }}' >> ./local.properties
+          echo ALIAS_PASS='${{ secrets.KEY_PASS }}' >> ./local.properties
+          
+      - name: Extra Modify
         working-directory: sing-box
         run: |
           echo '修改VersionName'
+          openssl des3 -md sha256 -d -k ${{ secrets.TAR_PASS }} -salt -in extra.tar.gz | tar -xzvf -
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
