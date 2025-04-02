@@ -22,19 +22,7 @@ jobs:
         run: |
           git clone https://github.com/SagerNet/sing-box sing-box
           git clone https://github.com/SagerNet/sing-box-for-android sing-box-for-android
-          # openssl des3 -md sha256 -d -k ${{ secrets.TAR_PASS }} -salt -in extra.tar.gz | tar -xzvf -         
-          mkdir sing-box-for-android/app/libs
-          cd sing-box-for-android
-          git checkout dev
-          rm -rf app/release.keystore
-          cp -rf ${{ github.workspace }}/.github/workflows/box.jks app/release.keystore
-          sed -i 's/include "armeabi-v7a", "arm64-v8a", "x86", "x86_64"/include "arm64-v8a"/' app/build.gradle
-          # sed -i '$a\release.keystore=./box.jks'     ./gradle.properties
-
-          echo ALIAS_NAME='${{ secrets.KEY_PASS }}' > ./local.properties
-          echo KEYSTORE_PASS='${{ secrets.KEY_PASS }}' >> ./local.properties
-          echo ALIAS_PASS='${{ secrets.KEY_PASS }}' >> ./local.properties
-      - name: Extra Modify
+      - name: Android Extra Modify 
         working-directory: sing-box-for-android
         run: |
           mkdir app/libs
@@ -46,11 +34,11 @@ jobs:
           echo KEYSTORE_PASS='${{ secrets.KEY_PASS }}' >> ./local.properties
           echo ALIAS_PASS='${{ secrets.KEY_PASS }}' >> ./local.properties
           
-      - name: Extra Modify
-        working-directory: sing-box
+      - name: sing-box Extra Modify
         run: |
           echo '修改VersionName'
           openssl des3 -md sha256 -d -k ${{ secrets.TAR_PASS }} -salt -in extra.tar.gz | tar -xzvf -
+          sh modify.sh
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -68,7 +56,31 @@ jobs:
         working-directory: sing-box
         run: |-
           go mod tidy
-          # make
+          make
+      - name: Upload artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sing-box.exe
+          path: sing-box/sing-box.exe
+      - name: Upload artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sing-box_aarch64
+          path: sing-box/sing-box_aarch64
+      - name: Upload artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sing-box_x86_64
+          path: sing-box/sing-box_x86_64
+      - name: Upload artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sing-box_freebsd_x86_64
+          path: sing-box/sing-box_freebsdx86_64
       - name: Build Andriod
         working-directory: sing-box
         run: |-
