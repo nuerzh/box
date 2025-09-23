@@ -56,8 +56,7 @@ jobs:
         working-directory: sing-box
         run: |-
           go mod tidy
-          #make
-          go build ./cmd/sing-box
+          make
       - name: Upload artifact
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
