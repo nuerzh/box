@@ -48,5 +48,5 @@ jobs:
         run: |-
           go mod tidy
           #make
-          cat protocol/cloak/outbound.go
+          ls ../sing-cloak
           go build ./cmd/sing-box
