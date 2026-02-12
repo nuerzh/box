@@ -85,7 +85,7 @@ jobs:
         run: |-
           make lib_install
           export PATH="$PATH:$(go env GOPATH)/bin"
-          make lib_android_debug
+          make lib_android
           ls ../sing-box-for-android/app/libs -alh
           make build_android
         env:
