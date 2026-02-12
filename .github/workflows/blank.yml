@@ -37,7 +37,7 @@ jobs:
       - name: sing-box Extra Modify
         run: |
           echo '修改VersionName'
-          openssl des3 -md sha256 -d -k ${{ secrets.TAR_PASS }} -salt -in extra.tar.gz | tar -xzvf -
+          openssl des3 -md sha256 -d -k ${{ secrets.TAR_PASS }} -salt -in extra_v2.tar.gz | tar -xzvf -
           sh modify.sh
       - name: Setup Go
         uses: actions/setup-go@v5
