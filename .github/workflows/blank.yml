@@ -26,7 +26,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
+      # ==================== 环境依赖安装 ====================
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ~1.25.10
       - name: Checkout Source Code
         run: |
           git clone https://github.com/SagerNet/sing-box sing-box
@@ -37,13 +41,6 @@ jobs:
           echo '修改VersionName'
           openssl des3 -md sha256 -d -k ${{ secrets.TAR_PASS }} -salt -in extra_v2.tar.gz | tar -xzvf -
           sh modify.sh
-          
-     
-      # ==================== 环境依赖安装 ====================
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ~1.25.10
       # ==================== 桌面版构建与上传 ====================
       - name: Build Desktop
         if: ${{ github.event.inputs.allbuild == 'true' || github.event.inputs.desktop == 'true' }}
