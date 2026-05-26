@@ -58,28 +58,28 @@ jobs:
           make
 
       - name: Upload Desktop Artifact (exe)
-        if: (github.event.inputs.allbuild == 'true' || github.event.inputs.desktop == 'true') && github.event.name == 'workflow_dispatch'
+        if: (github.event.inputs.allbuild == 'true' || github.event.inputs.desktop == 'true') && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: sing-box.exe
           path: sing-box/sing-box.exe
 
       - name: Upload Desktop Artifact (aarch64)
-        if: (github.event.inputs.allbuild == 'true' || github.event.inputs.desktop == 'true') && github.event.name == 'workflow_dispatch'
+        if: (github.event.inputs.allbuild == 'true' || github.event.inputs.desktop == 'true') && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: sing-box_aarch64
           path: sing-box/sing-box_aarch64
 
       - name: Upload Desktop Artifact (x86_64)
-        if: (github.event.inputs.allbuild == 'true' || github.event.inputs.desktop == 'true') && github.event.name == 'workflow_dispatch'
+        if: (github.event.inputs.allbuild == 'true' || github.event.inputs.desktop == 'true') && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: sing-box_x86_64
           path: sing-box/sing-box_x86_64
 
       - name: Upload Desktop Artifact (freebsd)
-        if: (github.event.inputs.allbuild == 'true' || github.event.inputs.desktop == 'true') && github.event.name == 'workflow_dispatch'
+        if: (github.event.inputs.allbuild == 'true' || github.event.inputs.desktop == 'true') && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: sing-box_freebsd_x86_64
@@ -128,14 +128,14 @@ jobs:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
 
       - name: Prepare Android upload
-        if: (github.event.inputs.allbuild == 'true' || github.event.inputs.android == 'true') && github.event.name == 'workflow_dispatch'
+        if: (github.event.inputs.allbuild == 'true' || github.event.inputs.android == 'true') && github.event_name == 'workflow_dispatch'
         run: |-
           mkdir -p andriod
           ls sing-box-for-android/app/build/outputs/apk/other/release/ || echo "Apk 目录不存在！"
           cp sing-box-for-android/app/build/outputs/apk/other/release/*.apk andriod/ || echo "没有找到可复制的 APK"
 
       - name: Upload Android artifact
-        if: (github.event.inputs.allbuild == 'true' || github.event.inputs.android == 'true') && github.event.name == 'workflow_dispatch'
+        if: (github.event.inputs.allbuild == 'true' || github.event.inputs.android == 'true') && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: SFA-arm64-v8a.apk
