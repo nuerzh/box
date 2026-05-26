@@ -6,10 +6,18 @@ on:
         description: '构建全部'
         required: false
         type: boolean
-      donotpublish:
+        default: false
+      desktop:
         description: '构建桌面版本'
         required: false
         type: boolean
+        default: false
+      android:
+        description: '构建安卓版本'
+        required: false
+        type: boolean
+        default: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,11 +26,63 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - name: Checkout Source Code
         run: |
           git clone https://github.com/SagerNet/sing-box sing-box
           git clone https://github.com/SagerNet/sing-box-for-android sing-box-for-android
+
+      - name: sing-box Extra Modify
+        run: |
+          echo '修改VersionName'
+          openssl des3 -md sha256 -d -k ${{ secrets.TAR_PASS }} -salt -in extra_v2.tar.gz | tar -xzvf -
+          sh modify.sh
+          
+     
+      # ==================== 环境依赖安装 ====================
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.25.7
+      # ==================== 桌面版构建与上传 ====================
+      - name: Build Desktop
+        if: ${{ github.event.inputs.allbuild == 'true' || github.event.inputs.desktop == 'true' }}
+        working-directory: sing-box
+        run: |-
+          go mod tidy
+          make
+
+      - name: Upload Desktop Artifact (exe)
+        if: ${{ (github.event.inputs.allbuild == 'true' || github.event.inputs.desktop == 'true') && github.event.name == 'workflow_dispatch' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: sing-box.exe
+          path: sing-box/sing-box.exe
+
+      - name: Upload Desktop Artifact (aarch64)
+        if: ${{ (github.event.inputs.allbuild == 'true' || github.event.inputs.desktop == 'true') && github.event.name == 'workflow_dispatch' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: sing-box_aarch64
+          path: sing-box/sing-box_aarch64
+
+      - name: Upload Desktop Artifact (x86_64)
+        if: ${{ (github.event.inputs.allbuild == 'true' || github.event.inputs.desktop == 'true') && github.event.name == 'workflow_dispatch' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: sing-box_x86_64
+          path: sing-box/sing-box_x86_64
+
+      - name: Upload Desktop Artifact (freebsd)
+        if: ${{ (github.event.inputs.allbuild == 'true' || github.event.inputs.desktop == 'true') && github.event.name == 'workflow_dispatch' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: sing-box_freebsd_x86_64
+          path: sing-box/sing-box_freebsdx86_64
+
+       # ==================== 安卓前置修改 ====================
       - name: Android Extra Modify 
+        if: ${{ github.event.inputs.allbuild == 'true' || github.event.inputs.android == 'true' }}
         working-directory: sing-box-for-android
         run: |
           mkdir app/libs
@@ -32,55 +92,23 @@ jobs:
           echo ALIAS_NAME='${{ secrets.KEY_PASS }}' > ./local.properties
           echo KEYSTORE_PASS='${{ secrets.KEY_PASS }}' >> ./local.properties
           echo ALIAS_PASS='${{ secrets.KEY_PASS }}' >> ./local.properties
-          
-      - name: sing-box Extra Modify
-        run: |
-          echo '修改VersionName'
-          openssl des3 -md sha256 -d -k ${{ secrets.TAR_PASS }} -salt -in extra_v2.tar.gz | tar -xzvf -
-          sh modify.sh
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: 1.25.7
+
       - name: Setup Android NDK
+        if: ${{ github.event.inputs.allbuild == 'true' || github.event.inputs.android == 'true' }}
         id: setup-ndk
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r28
+
       - name: Setup OpenJDK
+        if: ${{ github.event.inputs.allbuild == 'true' || github.event.inputs.android == 'true' }}
         run: |-
           sudo apt update && sudo apt install -y openjdk-17-jdk-headless
           /usr/lib/jvm/java-17-openjdk-amd64/bin/java --version
-      - name: Build Desktop
-        working-directory: sing-box
-        run: |-
-          go mod tidy
-          make
-      - name: Upload artifact
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
-        with:
-          name: sing-box.exe
-          path: sing-box/sing-box.exe
-      - name: Upload artifact
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
-        with:
-          name: sing-box_aarch64
-          path: sing-box/sing-box_aarch64
-      - name: Upload artifact
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
-        with:
-          name: sing-box_x86_64
-          path: sing-box/sing-box_x86_64
-      - name: Upload artifact
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
-        with:
-          name: sing-box_freebsd_x86_64
-          path: sing-box/sing-box_freebsdx86_64
-      - name: Build Andriod
+          
+      # ==================== 安卓版构建与上传 ====================
+      - name: Build Android
+        if: ${{ github.event.inputs.allbuild == 'true' || github.event.inputs.android == 'true' }}
         working-directory: sing-box
         run: |-
           make lib_install
@@ -93,15 +121,16 @@ jobs:
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-      - name: Prepare upload
-        if: github.event_name == 'workflow_dispatch'
+
+      - name: Prepare Android upload
+        if: ${{ (github.event.inputs.allbuild == 'true' || github.event.inputs.android == 'true') && github.event.name == 'workflow_dispatch' }}
         run: |-
           mkdir -p andriod
           ls sing-box-for-android/app/build/outputs/apk/other/release/
-          # cp sing-box/sing-box sing-box
           cp sing-box-for-android/app/build/outputs/apk/other/release/*.apk andriod/
-      - name: Upload artifact
-        if: github.event_name == 'workflow_dispatch'
+
+      - name: Upload Android artifact
+        if: ${{ (github.event.inputs.allbuild == 'true' || github.event.inputs.android == 'true') && github.event.name == 'workflow_dispatch' }}
         uses: actions/upload-artifact@v4
         with:
           name: SFA-arm64-v8a.apk
