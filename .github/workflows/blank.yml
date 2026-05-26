@@ -43,7 +43,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.25.7
+          go-version: ~1.25.10
       # ==================== 桌面版构建与上传 ====================
       - name: Build Desktop
         if: ${{ github.event.inputs.allbuild == 'true' || github.event.inputs.desktop == 'true' }}
