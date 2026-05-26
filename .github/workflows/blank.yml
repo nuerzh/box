@@ -44,6 +44,11 @@ jobs:
           openssl des3 -md sha256 -d -k ${{ secrets.TAR_PASS }} -salt -in extra_v2.tar.gz | tar -xzvf -
           sh modify.sh
 
+      - name: Debug event
+        run: |
+          echo "event name: ${{ github.event_name }}"
+          echo "event inputs android: ${{ github.event.inputs.android }}"
+          echo "event inputs allbuild: ${{ github.event.inputs.allbuild }}"
       # ==================== 桌面版构建与上传 ====================
       - name: Build Desktop
         if: github.event.inputs.allbuild == 'true' || github.event.inputs.desktop == 'true'
