@@ -86,7 +86,9 @@ jobs:
           make lib_install
           export PATH="$PATH:$(go env GOPATH)/bin"
           make lib_android
-          ls ../sing-box-for-android/app/libs -alh
+          cd ../sing-box-for-android
+          git submodule update --init --recursive -v
+          cd ../sing-box
           make build_android
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
