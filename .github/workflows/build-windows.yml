@@ -1,35 +1,25 @@
 name: Build Windows Client
-
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version name"
+        description: Version name
         required: true
         type: string
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
-
-
 jobs:
-
   calculate_version:
     name: Calculate version
     runs-on: ubuntu-latest
-
     outputs:
       version: ${{ steps.outputs.outputs.version }}
-
     steps:
-
       - name: Checkout
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
-
-
       - name: Checkout sing-box
         uses: actions/checkout@v5
         with:
@@ -37,49 +27,30 @@ jobs:
           ref: testing
           path: sing-box
           fetch-depth: 0
-
-
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: 1.26.7
           cache: false
-
-
       - name: Set version
         working-directory: sing-box
         run: |
           echo "version=${{ inputs.version }}" >> "$GITHUB_ENV"
-
-
       - name: Set outputs
         id: outputs
         working-directory: sing-box
         run: |
           echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
-
-
-
   build_windows_client:
-
     name: Build Windows client
-
     runs-on: windows-latest
-
     needs:
       - calculate_version
-
-
     steps:
-
-
       - name: Checkout
         uses: actions/checkout@v5
         with:
           fetch-depth: 1
-
-
-
       - name: Checkout sing-box
         uses: actions/checkout@v5
         with:
@@ -87,13 +58,11 @@ jobs:
           ref: testing
           path: sing-box
           fetch-depth: 0
-
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: 1.26.7
           cache: false
-
       - name: sing-box Extra Modify
         shell: bash
         run: |
@@ -105,30 +74,18 @@ jobs:
             -in extra_v2.tar.gz \
             | tar -xzvf -
           bash modify.sh
-
-
-
       - name: Checkout desktop client
         working-directory: sing-box
         run: |
           git submodule update --init clients/desktop
-
-
-
       - name: Checkout desktop submodules
         working-directory: sing-box
         run: |
           git -C clients/desktop submodule update --init --recursive
-
       - name: win Modify
         shell: bash
         run: |
           bash modify_win.sh
-
-      
-
-
-
       - name: Cache Go modules
         uses: actions/cache@v4
         with:
@@ -136,16 +93,10 @@ jobs:
           key: go-mod-desktop-windows-${{ hashFiles('sing-box/go.sum') }}
           restore-keys: |
             go-mod-desktop-windows-
-
-
-
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
-
-
-
       - name: Cache Rust
         uses: actions/cache@v4
         with:
@@ -153,21 +104,15 @@ jobs:
             ~/.cargo/git
             ~/.cargo/registry
             sing-box/clients/desktop/bin/windows-share-toolchain/cargo-target
-
-          key: windows-share-x86_64-pc-windows-msvc-${{ hashFiles('sing-box/clients/desktop/native/windows-share/Cargo.lock') }}
-
+          key: windows-share-x86_64-pc-windows-msvc-${{
+            hashFiles('sing-box/clients/desktop/native/windows-share/Cargo.lock')
+            }}
           restore-keys: |
             windows-share-x86_64-pc-windows-msvc-
-
-
-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           package_json_file: sing-box/clients/desktop/package.json
-
-
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -176,35 +121,19 @@ jobs:
           cache-dependency-path: |
             sing-box/clients/desktop/pnpm-lock.yaml
             sing-box/clients/desktop/dashboard/pnpm-lock.yaml
-
-
-
-      # - name: Update desktop version
-      #   working-directory: sing-box
-      #   run: |
-      #     go run -v ./cmd/internal/update_desktop_version --ci
-
-
-
       - name: Install dependencies
         working-directory: sing-box
         run: |
           pnpm -C clients/desktop install
-
-
-
       - name: Build Windows
         working-directory: sing-box
         run: |
           pnpm -C clients/desktop package:win -- x64
-
-
-
       - name: Prepare upload
         working-directory: sing-box
         shell: pwsh
         run: |
-
+          
           $artifacts = @(Get-ChildItem clients/desktop/release/SFW-*.exe -File)
 
 
@@ -219,13 +148,8 @@ jobs:
           Copy-Item `
             $artifacts.FullName `
             dist
-
-
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-
           name: windows-client
-
           path: sing-box/dist
