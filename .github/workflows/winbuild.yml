@@ -252,11 +252,10 @@ jobs:
         working-directory: sing-box
         run: rm -f dist/sing-box
       - name: Upload artifact
-        working-directory: sing-box
         uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.os }}_${{ matrix.arch }}${{ matrix.goarm && format('v{0}', matrix.goarm) }}${{ matrix.go386 && format('_{0}', matrix.go386) }}${{ matrix.gomips && format('_{0}', matrix.gomips) }}${{ matrix.variant && format('-{0}', matrix.variant) }}
-          path: "dist"
+          path: "sing-box/dist"
   build_android_library:
     name: Build Android library (${{ matrix.go_arch }})
     if: (github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Android' || inputs.build == 'publish-android') && github.ref != 'refs/heads/oldstable'
@@ -324,10 +323,9 @@ jobs:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
       - name: Upload library
         uses: actions/upload-artifact@v4
-        working-directory: sing-box
         with:
           name: libbox-android-${{ matrix.go_arch }}
-          path: dist
+          path: sing-box/dist
           compression-level: 0
   build_android:
     name: Build Android (${{ matrix.variant }})
@@ -467,10 +465,9 @@ jobs:
           cat dist/SFA-version-metadata.json
       - name: Upload artifact
         uses: actions/upload-artifact@v4
-        working-directory: sing-box
         with:
           name: binary-android-apks-${{ matrix.variant }}
-          path: 'dist'
+          path: 'sing-box/dist'
   build_windows_client:
     name: Build Windows client (${{ matrix.desktop_arch }})
     if: (github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Windows') && github.ref != 'refs/heads/oldstable'
@@ -531,28 +528,25 @@ jobs:
           targets: ${{ matrix.rust_target }}
       - name: Cache Windows sharing module
         uses: actions/cache@v4
-        working-directory: sing-box
         with:
           path: |
             ~/.cargo/git
             ~/.cargo/registry
-            clients/desktop/bin/windows-share-toolchain/cargo-target
+            sing-box/clients/desktop/bin/windows-share-toolchain/cargo-target
           key: windows-share-${{ matrix.rust_target }}-${{ hashFiles('clients/desktop/native/windows-share/Cargo.lock') }}
           restore-keys: windows-share-${{ matrix.rust_target }}-
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        working-directory: sing-box
         with:
-          package_json_file: clients/desktop/package.json
+          package_json_file: sing-box/clients/desktop/package.json
       - name: Setup Node.js
         uses: actions/setup-node@v4
-        working-directory: sing-box
         with:
-          node-version-file: clients/desktop/package.json
+          node-version-file: sing-box/clients/desktop/package.json
           cache: pnpm
           cache-dependency-path: |
-            clients/desktop/pnpm-lock.yaml
-            clients/desktop/dashboard/pnpm-lock.yaml
+            sing-box/clients/desktop/pnpm-lock.yaml
+            sing-box/clients/desktop/dashboard/pnpm-lock.yaml
       - name: Set tag
         working-directory: sing-box
         run: |-
