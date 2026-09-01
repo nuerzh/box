@@ -397,10 +397,9 @@ jobs:
           git tag v${{ needs.calculate_version.outputs.version }} -f
       - name: Download libraries
         uses: actions/download-artifact@v4
-        working-directory: sing-box
         with:
           pattern: libbox-android-*
-          path: libbox-inputs
+          path: sing-box/libbox-inputs
           merge-multiple: true
       - name: Merge libraries
         working-directory: sing-box
@@ -426,7 +425,6 @@ jobs:
           git submodule update --init --recursive -v
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
-        working-directory: sing-box
         with:
           cache-provider: basic
       - name: Update version
