@@ -132,19 +132,14 @@ jobs:
       - name: Prepare upload
         working-directory: sing-box
         shell: pwsh
-        run: |
-          
-          $artifacts = @(Get-ChildItem clients/desktop/release/SFW-*.exe -File)
-
+        run: |          
+          $artifacts = @(Get-ChildItem sing-box/clients/desktop/release/SFW-*.exe -File)
 
           if ($artifacts.Count -ne 1) {
             throw "Expected one Windows installer, found $($artifacts.Count)"
           }
 
-
           New-Item -ItemType Directory -Force dist | Out-Null
-
-
           Copy-Item `
             $artifacts.FullName `
             dist
