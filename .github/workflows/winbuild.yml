@@ -1,151 +1,595 @@
 name: winbuild
+
 on:
   workflow_dispatch:
     inputs:
-      allbuild:
-        description: '构建全部'
+      version:
+        description: "Version name"
+        required: true
+        type: string
+      build:
+        description: "Build type"
+        required: true
+        type: choice
+        default: "All"
+        options:
+          - All
+          - Binary
+          - Android
+          - Windows
+          - Linux
+          - Apple
+          - Apple-release
+          - iOS
+          - macOS
+          - tvOS
+          - macOS-standalone
+          - iOS-jailbreak
+          - publish-android
+      test_message:
+        description: "TestFlight test message"
         required: false
-        type: boolean
-        default: false
-      desktop:
-        description: '构建桌面版本'
-        required: false
-        type: boolean
-        default: false
-      console:
-        description: '构建windows命令行'
-        required: false
-        type: boolean
-        default: false
-      android:
-        description: '构建安卓版本'
-        required: false
-        type: boolean
-        default: false
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.build }}
+  cancel-in-progress: true
 
 jobs:
-  build:
+  calculate_version:
+    name: Calculate version
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.outputs.outputs.version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
+          repository: SagerNet/sing-box
+          ref: testing
+          path: sing-box
           fetch-depth: 0
-
-      # ==================== 环境依赖安装 ====================
-      # - name: Check and Use System Go
-      #   run: |
-      #     go version
-      #     echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ~1.25.10
-
-      - name: Checkout Source Code
-        run: |
-          git clone https://github.com/SagerNet/sing-box sing-box
-          git clone https://github.com/SagerNet/sing-box-for-android sing-box-for-android
-
-      - name: sing-box Extra Modify
-        run: |
-          echo '修改VersionName'
-          openssl des3 -md sha256 -d -k ${{ secrets.TAR_PASS }} -salt -in extra_v2.tar.gz | tar -xzvf -
-          sh modify.sh
-
-      - name: Debug event
-        run: |
-          echo "event name: ${{ github.event_name }}"
-          echo "event inputs android: ${{ github.event.inputs.android }}"
-          echo "event inputs allbuild: ${{ github.event.inputs.allbuild }}"
-      # ==================== 桌面版构建与上传 ====================
-      - name: Build Console
-        if: github.event.inputs.allbuild == 'true' || github.event.inputs.console == 'true'
+          go-version: 1.26.7
+          cache: false
+      - name: Cache Go modules
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/go/pkg/mod
+          key: go-mod-linux-${{ hashFiles('go.sum') }}
+          restore-keys: go-mod-linux-
+      - name: Cache Go tool builds
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/go-build
+          key: go-build-tools-linux-${{ hashFiles('go.sum') }}
+          restore-keys: go-build-tools-linux-
+      - name: Check input version
+        if: github.event_name == 'workflow_dispatch'
+        run: |-
+          echo "version=${{ inputs.version }}"
+          echo "version=${{ inputs.version }}" >> "$GITHUB_ENV"
+      - name: Calculate version
+        if: github.event_name != 'workflow_dispatch'
         working-directory: sing-box
         run: |-
-          go mod tidy
-          make
-
-      - name: Upload Console Artifact (exe)
-        if: (github.event.inputs.allbuild == 'true' || github.event.inputs.console == 'true') && github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
+          go run -v ./cmd/internal/read_tag --ci --nightly
+      - name: Set outputs
+        id: outputs
+        working-directory: sing-box
+        run: |-
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+  build:
+    name: Build binary
+    if: github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Binary'
+    runs-on: ubuntu-26.04
+    needs:
+      - calculate_version
+    strategy:
+      max-parallel: 13
+      matrix:
+        include:
+          - { os: linux, arch: amd64, variant: glibc, naive: true }
+          - { os: linux, arch: arm64, variant: glibc, naive: true }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
-          name: sing-box.exe
-          path: sing-box/sing-box.exe
-
-      - name: Upload Console Artifact (aarch64)
-        if: (github.event.inputs.allbuild == 'true' || github.event.inputs.console == 'true') && github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
+          fetch-depth: 1
+      - name: CheckoutSingBox
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
-          name: sing-box_aarch64
-          path: sing-box/sing-box_aarch64
-
-      - name: Upload Console Artifact (x86_64)
-        if: (github.event.inputs.allbuild == 'true' || github.event.inputs.console == 'true') && github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
-        with:
-          name: sing-box_x86_64
-          path: sing-box/sing-box_x86_64
-
-      - name: Upload Console Artifact (freebsd)
-        if: (github.event.inputs.allbuild == 'true' || github.event.inputs.console == 'true') && github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
-        with:
-          name: sing-box_freebsd_x86_64
-          path: sing-box/sing-box_freebsdx86_64
-
-      # ==================== 安卓前置修改 ====================
-      - name: Android Extra Modify 
-        if: github.event.inputs.allbuild == 'true' || github.event.inputs.android == 'true'
-        working-directory: sing-box-for-android
+          repository: SagerNet/sing-box
+          ref: testing
+          path: sing-box
+          fetch-depth: 0
+      - name: sing-box Extra Modify
         run: |
-          mkdir app/libs
-          rm -rf app/release.keystore
-          cp -rf ${{ github.workspace }}/.github/workflows/box.jks app/release.keystore
-          sed -i 's/include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")/include("arm64-v8a", "x86_64")/' app/build.gradle.kts
-          echo ALIAS_NAME='${{ secrets.KEY_PASS }}' > ./local.properties
-          echo KEYSTORE_PASS='${{ secrets.KEY_PASS }}' >> ./local.properties
-          echo ALIAS_PASS='${{ secrets.KEY_PASS }}' >> ./local.properties
-
+          openssl des3 -md sha256 -d -k ${{ secrets.TAR_PASS }} -salt -in extra_v2.tar.gz | tar -xzvf -
+          sh modify.sh
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.26.7
+          cache: false
+      - name: Cache Go modules
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/go/pkg/mod
+          key: go-mod-linux-${{ hashFiles('go.sum') }}
+          restore-keys: go-mod-linux-
+      - name: Set tag
+        working-directory: sing-box
+        run: |-
+          git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }} || echo "PUBLISHED=false" >> "$GITHUB_ENV"
+          git tag v${{ needs.calculate_version.outputs.version }} -f
+      - name: Set build tags
+        run: |
+          set -xeuo pipefail
+          TAGS=$(cat release/DEFAULT_BUILD_TAGS_OTHERS)
+          if [[ "${{ matrix.variant }}" == "purego" ]]; then
+            TAGS="${TAGS},with_purego"
+          elif [[ "${{ matrix.variant }}" == "musl" ]]; then
+            TAGS="${TAGS},with_musl"
+          fi
+          echo "BUILD_TAGS=${TAGS}" >> "${GITHUB_ENV}"
+      - name: Set shared ldflags
+        run: |
+          echo "LDFLAGS_SHARED=$(cat release/LDFLAGS)" >> "${GITHUB_ENV}"
+      - name: Build (purego)
+        if: matrix.variant == 'purego'
+        working-directory: sing-box
+        run: |
+          set -xeuo pipefail
+          mkdir -p dist
+          go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
+          -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }}' ${LDFLAGS_SHARED} -s -w -buildid=" \
+          ./cmd/sing-box
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          GO386: ${{ matrix.go386 }}
+          GOARM: ${{ matrix.goarm }}
+          GOMIPS: ${{ matrix.gomips }}
+          GOMIPS64: ${{ matrix.gomips }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build (glibc)
+        if: matrix.variant == 'glibc'
+        working-directory: sing-box
+        run: |
+          set -xeuo pipefail
+          mkdir -p dist
+          go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
+          -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }}' ${LDFLAGS_SHARED} -s -w -buildid=" \
+          ./cmd/sing-box
+        env:
+          CGO_ENABLED: "1"
+          GOOS: linux
+          GOARCH: ${{ matrix.arch }}
+          GO386: ${{ matrix.go386 }}
+          GOARM: ${{ matrix.goarm }}
+          GOMIPS: ${{ matrix.gomips }}
+          GOMIPS64: ${{ matrix.gomips }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build (musl)
+        if: matrix.variant == 'musl'
+        working-directory: sing-box
+        run: |
+          set -xeuo pipefail
+          mkdir -p dist
+          go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
+          -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }}' ${LDFLAGS_SHARED} -s -w -buildid=" \
+          ./cmd/sing-box
+        env:
+          CGO_ENABLED: "1"
+          GOOS: linux
+          GOARCH: ${{ matrix.arch }}
+          GO386: ${{ matrix.go386 }}
+          GOARM: ${{ matrix.goarm }}
+          GOMIPS: ${{ matrix.gomips }}
+          GOMIPS64: ${{ matrix.gomips }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build (non-variant)
+        if: matrix.os != 'android' && matrix.variant == ''
+        working-directory: sing-box
+        run: |
+          set -xeuo pipefail
+          mkdir -p dist
+          go build -v -trimpath -o dist/sing-box -tags "${BUILD_TAGS}" \
+          -ldflags "-X 'github.com/sagernet/sing-box/constant.Version=${{ needs.calculate_version.outputs.version }}' ${LDFLAGS_SHARED} -s -w -buildid=" \
+          ./cmd/sing-box
+        env:
+          CGO_ENABLED: "0"
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          GO386: ${{ matrix.go386 }}
+          GOARM: ${{ matrix.goarm }}
+          GOMIPS: ${{ matrix.gomips }}
+          GOMIPS64: ${{ matrix.gomips }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set name
+        working-directory: sing-box
+        run: |-
+          DIR_NAME="sing-box-${{ needs.calculate_version.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}"
+          if [[ -n "${{ matrix.goarm }}" ]]; then
+            DIR_NAME="${DIR_NAME}v${{ matrix.goarm }}"
+          elif [[ -n "${{ matrix.go386 }}" && "${{ matrix.go386 }}" != 'sse2' ]]; then
+            DIR_NAME="${DIR_NAME}-${{ matrix.go386 }}"
+          elif [[ -n "${{ matrix.gomips }}" && "${{ matrix.gomips }}" != 'hardfloat' ]]; then
+            DIR_NAME="${DIR_NAME}-${{ matrix.gomips }}"
+          fi
+          if [[ "${{ matrix.variant }}" == "glibc" ]]; then
+            DIR_NAME="${DIR_NAME}-glibc"
+          elif [[ "${{ matrix.variant }}" == "musl" ]]; then
+            DIR_NAME="${DIR_NAME}-musl"
+          fi
+          echo "DIR_NAME=${DIR_NAME}" >> "${GITHUB_ENV}"
+          PKG_VERSION="${{ needs.calculate_version.outputs.version }}"
+          PKG_VERSION="${PKG_VERSION//-/\~}"
+          echo "PKG_VERSION=${PKG_VERSION}" >> "${GITHUB_ENV}"
+      - name: Archive
+        working-directory: sing-box
+        run: |
+          set -xeuo pipefail
+          cd dist
+          mkdir -p "${DIR_NAME}"
+          cp ../LICENSE "${DIR_NAME}"
+          if [ '${{ matrix.os }}' = 'windows' ]; then
+            cp sing-box "${DIR_NAME}/sing-box.exe"
+            zip -r "${DIR_NAME}.zip" "${DIR_NAME}"
+          else
+            cp sing-box "${DIR_NAME}"
+            if [ -f libcronet.so ]; then
+              cp libcronet.so "${DIR_NAME}"
+            fi
+            tar -czvf "${DIR_NAME}.tar.gz" "${DIR_NAME}"
+          fi
+          rm -r "${DIR_NAME}"
+      - name: Cleanup
+        working-directory: sing-box
+        run: rm -f dist/sing-box
+      - name: Upload artifact
+        working-directory: sing-box
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.os }}_${{ matrix.arch }}${{ matrix.goarm && format('v{0}', matrix.goarm) }}${{ matrix.go386 && format('_{0}', matrix.go386) }}${{ matrix.gomips && format('_{0}', matrix.gomips) }}${{ matrix.variant && format('-{0}', matrix.variant) }}
+          path: "dist"
+  build_android_library:
+    name: Build Android library (${{ matrix.go_arch }})
+    if: (github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Android' || inputs.build == 'publish-android') && github.ref != 'refs/heads/oldstable'
+    runs-on: ubuntu-latest
+    needs:
+      - calculate_version
+    strategy:
+      fail-fast: false
+      matrix:
+        go_arch:
+          - amd64
+          - arm
+          - arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          fetch-depth: 1
+      - name: CheckoutSingBox
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          repository: SagerNet/sing-box
+          ref: testing
+          path: sing-box
+          fetch-depth: 0
+      - name: sing-box Extra Modify
+        run: |
+          openssl des3 -md sha256 -d -k ${{ secrets.TAR_PASS }} -salt -in extra_v2.tar.gz | tar -xzvf -
+          sh modify.sh
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.26.7
+          cache: false
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: go-mod-linux-${{ hashFiles('go.sum') }}
+          restore-keys: go-mod-linux-
       - name: Setup Android NDK
-        if: github.event.inputs.allbuild == 'true' || github.event.inputs.android == 'true'
         id: setup-ndk
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r28
-
       - name: Setup OpenJDK
-        if: github.event.inputs.allbuild == 'true' || github.event.inputs.android == 'true'
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Set tag
+        working-directory: sing-box
         run: |-
-          sudo apt update && sudo apt install -y openjdk-17-jdk-headless
-          /usr/lib/jvm/java-17-openjdk-amd64/bin/java --version
-          
-      # ==================== 安卓版构建与上传 ====================
-      - name: Build Android
-        if: github.event.inputs.allbuild == 'true' || github.event.inputs.android == 'true'
+          git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }} || echo "PUBLISHED=false" >> "$GITHUB_ENV"
+          git tag v${{ needs.calculate_version.outputs.version }} -f
+      - name: Build library
         working-directory: sing-box
         run: |-
           make lib_install
           export PATH="$PATH:$(go env GOPATH)/bin"
-          make lib_android
-          cd ../sing-box-for-android
-          git submodule update --init --recursive -v
-          cd ../sing-box
-          make build_android
+          go run ./cmd/internal/build_libbox -target android -platform android/${{ matrix.go_arch }}
+          mkdir -p dist/${{ matrix.go_arch }}
+          mv libbox.aar libbox-legacy.aar dist/${{ matrix.go_arch }}
         env:
-          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-
-      - name: Prepare Android upload
-        if: (github.event.inputs.allbuild == 'true' || github.event.inputs.android == 'true') && github.event_name == 'workflow_dispatch'
+      - name: Upload library
+        uses: actions/upload-artifact@v4
+        working-directory: sing-box
+        with:
+          name: libbox-android-${{ matrix.go_arch }}
+          path: dist
+          compression-level: 0
+  build_android:
+    name: Build Android (${{ matrix.variant }})
+    if: (github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Android') && github.ref != 'refs/heads/oldstable'
+    runs-on: ubuntu-latest
+    needs:
+      - calculate_version
+      - build_android_library
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: other
+            task: :app:assembleOtherRelease
+            output: app/build/outputs/apk/other/release/*.apk
+          - variant: other-legacy
+            task: :app:assembleOtherLegacyRelease
+            output: app/build/outputs/apk/otherLegacy/release/*.apk
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          fetch-depth: 1
+      - name: CheckoutSingBox
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          repository: SagerNet/sing-box
+          ref: testing
+          path: sing-box
+          fetch-depth: 0
+      - name: sing-box Extra Modify
+        run: |
+          openssl des3 -md sha256 -d -k ${{ secrets.TAR_PASS }} -salt -in extra_v2.tar.gz | tar -xzvf -
+          sh modify.sh
+      - name: Checkout Android client
+        working-directory: sing-box
+        run: git submodule update --init clients/android
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.26.7
+          cache: false
+      - name: Cache Go modules
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/go/pkg/mod
+          key: go-mod-linux-${{ hashFiles('go.sum') }}
+          restore-keys: go-mod-linux-
+      - name: Cache Go tool builds
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/go-build
+          key: go-build-tools-linux-${{ hashFiles('go.sum') }}
+          restore-keys: go-build-tools-linux-
+      - name: Setup Android NDK
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r28
+      - name: Setup OpenJDK
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: 17
+      - name: Set tag
+        working-directory: sing-box
         run: |-
-          mkdir -p andriod
-          ls sing-box-for-android/app/build/outputs/apk/other/release/ || echo "Apk 目录不存在！"
-          cp sing-box-for-android/app/build/outputs/apk/other/release/*.apk andriod/ || echo "没有找到可复制的 APK"
-
-      - name: Upload Android artifact
-        if: (github.event.inputs.allbuild == 'true' || github.event.inputs.android == 'true') && github.event_name == 'workflow_dispatch'
+          git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }} || echo "PUBLISHED=false" >> "$GITHUB_ENV"
+          git tag v${{ needs.calculate_version.outputs.version }} -f
+      - name: Download libraries
+        uses: actions/download-artifact@v4
+        working-directory: sing-box
+        with:
+          pattern: libbox-android-*
+          path: libbox-inputs
+          merge-multiple: true
+      - name: Merge libraries
+        working-directory: sing-box
+        run: |-
+          go run ./cmd/internal/merge_aar -output libbox.aar libbox-inputs/*/libbox.aar
+          go run ./cmd/internal/merge_aar -output libbox-legacy.aar libbox-inputs/*/libbox-legacy.aar
+      - name: Checkout main branch
+        if: github.ref == 'refs/heads/stable' && github.event_name != 'workflow_dispatch'
+        working-directory: sing-box
+        run: |-
+          cd clients/android
+          git checkout main
+      - name: Checkout dev branch
+        if: github.ref == 'refs/heads/testing'
+        working-directory: sing-box
+        run: |-
+          cd clients/android
+          git checkout dev
+      - name: Checkout submodule recursive
+        working-directory: sing-box
+        run: |-
+          cd clients/android
+          git submodule update --init --recursive -v
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+        working-directory: sing-box
+        with:
+          cache-provider: basic
+      - name: Update version
+        if: github.event_name == 'workflow_dispatch'
+        working-directory: sing-box
+        run: |-
+          go run -v ./cmd/internal/update_android_version --ci
+      - name: Update nightly version
+        if: github.event_name != 'workflow_dispatch'
+        working-directory: sing-box
+        run: |-
+          go run -v ./cmd/internal/update_android_version --ci --nightly
+      - name: Build
+        working-directory: sing-box
+        run: |-
+          mkdir -p clients/android/app/libs
+          cp *.aar clients/android/app/libs
+          cd clients/android
+          ./gradlew --build-cache --parallel ${{ matrix.task }}
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+      - name: Prepare upload
+        working-directory: sing-box
+        run: |-
+          mkdir -p dist
+          cp clients/android/${{ matrix.output }} dist
+          VERSION_CODE=$(grep VERSION_CODE clients/android/version.properties | cut -d= -f2)
+          VERSION_NAME=$(grep VERSION_NAME clients/android/version.properties | cut -d= -f2)
+          cat > dist/SFA-version-metadata.json << EOF
+          {
+            "version_code": ${VERSION_CODE},
+            "version_name": "${VERSION_NAME}"
+          }
+          EOF
+          cat dist/SFA-version-metadata.json
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        working-directory: sing-box
+        with:
+          name: binary-android-apks-${{ matrix.variant }}
+          path: 'dist'
+  build_windows_client:
+    name: Build Windows client (${{ matrix.desktop_arch }})
+    if: (github.event_name != 'workflow_dispatch' || inputs.build == 'All' || inputs.build == 'Windows') && github.ref != 'refs/heads/oldstable'
+    runs-on: windows-latest
+    needs:
+      - calculate_version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { desktop_arch: x64, rust_target: x86_64-pc-windows-msvc }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          fetch-depth: 1
+      - name: CheckoutSingBox
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          repository: SagerNet/sing-box
+          ref: testing
+          path: sing-box
+          fetch-depth: 0
+      - name: sing-box Extra Modify
+        shell: bash
+        run: |
+          openssl des3 -md sha256 -d -k ${{ secrets.TAR_PASS }} -salt -in extra_v2.tar.gz | tar -xzvf -
+          bash modify.sh
+          bash modify_win.sh
+      - name: Checkout desktop client
+        working-directory: sing-box
+        run: git submodule update --init clients/desktop
+      - name: Checkout main branch
+        if: github.ref == 'refs/heads/stable' && github.event_name != 'workflow_dispatch'
+        working-directory: sing-box
+        run: git -C clients/desktop checkout main
+      - name: Checkout dev branch
+        if: github.ref == 'refs/heads/testing'
+        working-directory: sing-box
+        run: git -C clients/desktop checkout dev
+      - name: Checkout desktop submodules
+        working-directory: sing-box
+        run: git -C clients/desktop submodule update --init --recursive
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.26.7
+          cache: false
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: go-mod-desktop-windows-${{ hashFiles('go.sum') }}
+          restore-keys: go-mod-desktop-windows-
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@1.88.0
+        with:
+          targets: ${{ matrix.rust_target }}
+      - name: Cache Windows sharing module
+        uses: actions/cache@v4
+        working-directory: sing-box
+        with:
+          path: |
+            ~/.cargo/git
+            ~/.cargo/registry
+            clients/desktop/bin/windows-share-toolchain/cargo-target
+          key: windows-share-${{ matrix.rust_target }}-${{ hashFiles('clients/desktop/native/windows-share/Cargo.lock') }}
+          restore-keys: windows-share-${{ matrix.rust_target }}-
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        working-directory: sing-box
+        with:
+          package_json_file: clients/desktop/package.json
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        working-directory: sing-box
+        with:
+          node-version-file: clients/desktop/package.json
+          cache: pnpm
+          cache-dependency-path: |
+            clients/desktop/pnpm-lock.yaml
+            clients/desktop/dashboard/pnpm-lock.yaml
+      - name: Set tag
+        working-directory: sing-box
+        run: |-
+          git ls-remote --exit-code --tags origin v${{ needs.calculate_version.outputs.version }}
+          if ($LASTEXITCODE -ne 0) {
+            "PUBLISHED=false" >> $env:GITHUB_ENV
+          }
+          git tag v${{ needs.calculate_version.outputs.version }} -f
+      - name: Update version
+        if: github.event_name == 'workflow_dispatch'
+        working-directory: sing-box
+        run: |-
+          go run -v ./cmd/internal/update_desktop_version --ci
+      - name: Update nightly version
+        if: github.event_name != 'workflow_dispatch'
+        working-directory: sing-box
+        run: |-
+          go run -v ./cmd/internal/update_desktop_version --ci --nightly
+      - name: Install dependencies
+        working-directory: sing-box
+        run: |-
+          pnpm -C clients/desktop install
+      - name: Build
+        working-directory: sing-box
+        run: |-
+          pnpm -C clients/desktop package:win -- ${{ matrix.desktop_arch }}
+      - name: Prepare upload
+        working-directory: sing-box
+        run: |-
+          $artifacts = @(Get-ChildItem clients/desktop/release/SFW-*.exe -File)
+          if ($artifacts.Count -ne 1) {
+            throw "expected 1 Windows installer for ${{ matrix.desktop_arch }}, found $($artifacts.Count)"
+          }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item $artifacts.FullName dist
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SFA-arm64-v8a.apk
-          path: andriod
+          name: binary-windows-client-${{ matrix.desktop_arch }}
+          path: 'sing-box/dist'
