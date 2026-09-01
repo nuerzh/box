@@ -179,10 +179,10 @@ jobs:
 
 
 
-      - name: Update desktop version
-        working-directory: sing-box
-        run: |
-          go run -v ./cmd/internal/update_desktop_version --ci
+      # - name: Update desktop version
+      #   working-directory: sing-box
+      #   run: |
+      #     go run -v ./cmd/internal/update_desktop_version --ci
 
 
 
