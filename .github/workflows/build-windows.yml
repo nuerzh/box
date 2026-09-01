@@ -120,17 +120,12 @@ jobs:
         working-directory: sing-box
         run: |
           pnpm -C clients/desktop install
-      - name: Check signing environment
+      - name: Print electron-builder config
+        working-directory: sing-box/clients/desktop
         shell: bash
         run: |
-          env | grep -i csc || true
-          env | grep -i sign || true
-      - name: Check signing env
-        shell: pwsh
-        run: |
-          Get-ChildItem Env: | Where-Object {
-            $_.Name -match "CSC|SIGN|CERT|P12"
-          }
+          pnpm electron-builder --config.print > builder-config.txt
+          grep -i -A10 -B10 "sign" builder-config.txt || true
       - name: Build Windows
         working-directory: sing-box
         run: |
