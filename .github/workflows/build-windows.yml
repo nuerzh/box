@@ -100,7 +100,8 @@ jobs:
             -salt \
             -in extra_v2.tar.gz \
             | tar -xzvf -
-
+          ls -alh
+          ls sing-box -alh
           bash modify.sh
           bash modify_win.sh
 
