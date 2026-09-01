@@ -1,11 +1,6 @@
 name: Build Windows Client
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: Version name
-        required: true
-        type: string
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
