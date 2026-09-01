@@ -100,10 +100,7 @@ jobs:
             -salt \
             -in extra_v2.tar.gz \
             | tar -xzvf -
-          ls -alh
-          ls sing-box -alh
           bash modify.sh
-          bash modify_win.sh
 
 
 
@@ -119,7 +116,10 @@ jobs:
         run: |
           git -C clients/desktop submodule update --init --recursive
 
-
+      - name: win Modify
+        shell: bash
+        run: |
+          bash modify_win.sh
 
       - name: Setup Go
         uses: actions/setup-go@v5
