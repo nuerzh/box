@@ -132,7 +132,9 @@ jobs:
         working-directory: sing-box/clients/desktop
         shell: bash
         run: |
-          pnpm electron-builder --config.print > builder-config.txt
+          pnpm exec electron-builder --config.print > builder-config.txt || true
+          echo "===== CONFIG ====="
+          wc -c builder-config.txt
           cat builder-config.txt
       - name: Build Windows
         working-directory: sing-box
